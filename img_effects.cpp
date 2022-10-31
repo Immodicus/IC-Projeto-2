@@ -7,7 +7,8 @@ typedef enum Effect
 {
     Invert,
     Rotate,
-    Mirror,
+    MirrorHorizontal,
+    MirrorVertical,
     Brightness
 } Effect;
 
@@ -20,7 +21,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    Effect effect = Invert;
+    Effect effect = MirrorVertical;
 
     std::string image_path = samples::findFile(argv[argc-2]);
 
@@ -45,6 +46,26 @@ int main(int argc, char** argv)
                 uchar blue = 255 - p[2];
 
                 out.at<Vec3b>(j, i) = Vec3b(red, green, blue);
+            }
+        }
+    }
+    else if(effect == MirrorHorizontal)
+    {
+        for(size_t i = 0; i < img.cols; i++)
+        {
+            for(size_t j = 0; j < img.rows; j++)
+            {            
+                out.at<Vec3b>(j, i) = img.at<Vec3b>(j, img.cols - i - 1);
+            }
+        }
+    }
+    else if(effect == MirrorVertical)
+    {
+        for(size_t i = 0; i < img.cols; i++)
+        {
+            for(size_t j = 0; j < img.rows; j++)
+            {            
+                out.at<Vec3b>(j, i) = img.at<Vec3b>(img.rows - j - 1, i);
             }
         }
     }
