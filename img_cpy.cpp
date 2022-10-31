@@ -21,14 +21,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    Rect r (0, 0, img.cols, img.rows);
     Mat out(img.rows, img.cols, CV_8UC3);
 
     for(size_t i = 0; i < img.cols; i++)
     {
         for(size_t j = 0; j < img.rows; j++)
         {            
-            out.at<Vec3b>(i, j) = img.at<Vec3b>(i, j);
+            out.at<Vec3b>(j, i) = img.at<Vec3b>(j, i);
         }
     }
 
