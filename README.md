@@ -12,7 +12,7 @@
 
 ## Building:
 
-- git clone git@github.com:Immodicus/IC-Projeto_1.git
+- git clone git@github.com:Immodicus/IC-Projeto-2.git
 - cd IC-Projeto-2
 - mkdir build && cd build
 - cmake ..
