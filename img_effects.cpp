@@ -15,14 +15,20 @@ typedef enum Effect
 using namespace cv;
 int main(int argc, char** argv)
 {
+    int eff, bright, n;
+
+    std::cout << "\nInput value for effect wanted:\n-> 1 for Invert\n-> 2 for Mirror Horizontally\n-> 3 for Mirror Vertically\n"
+            << "-> 4 for Increse, Decrease brightness\n-> 5 for Rotations of 90 degrees\n\n"
+            << "-> ";
+    std::cin >> eff;
+
     if(argc < 3)
     {
         std::cerr << "Invalid usage. Usage: img_cpy original copy\n";
         return 1;
     }
 
-    Effect effect = MirrorVertical;
-
+    Effect effect = Invert;
     std::string image_path = samples::findFile(argv[argc-2]);
 
     Mat img = imread(image_path, IMREAD_ANYCOLOR);
@@ -34,9 +40,10 @@ int main(int argc, char** argv)
 
     Mat out(img.rows, img.cols, CV_8UC3);
 
-    if(effect == Invert)
-    {
-        for(size_t i = 0; i < img.cols; i++)
+    switch (eff){
+
+        case 1: // Invert    
+            for(size_t i = 0; i < img.cols; i++)
         {
             for(size_t j = 0; j < img.rows; j++)
             {            
@@ -48,26 +55,65 @@ int main(int argc, char** argv)
                 out.at<Vec3b>(j, i) = Vec3b(red, green, blue);
             }
         }
-    }
-    else if(effect == MirrorHorizontal)
-    {
-        for(size_t i = 0; i < img.cols; i++)
-        {
-            for(size_t j = 0; j < img.rows; j++)
-            {            
-                out.at<Vec3b>(j, i) = img.at<Vec3b>(j, img.cols - i - 1);
+            break;
+
+        case 2: // MirrorHorizontal
+            for(size_t i = 0; i < img.cols; i++)
+            {
+                for(size_t j = 0; j < img.rows; j++)
+                {            
+                    out.at<Vec3b>(j, i) = img.at<Vec3b>(j, img.cols - i - 1);
+                }
             }
-        }
-    }
-    else if(effect == MirrorVertical)
-    {
-        for(size_t i = 0; i < img.cols; i++)
-        {
-            for(size_t j = 0; j < img.rows; j++)
-            {            
-                out.at<Vec3b>(j, i) = img.at<Vec3b>(img.rows - j - 1, i);
+            break;
+
+        case 3: // MirrorVertical
+            for(size_t i = 0; i < img.cols; i++)
+            {
+                for(size_t j = 0; j < img.rows; j++)
+                {            
+                    out.at<Vec3b>(j, i) = img.at<Vec3b>(img.rows - j - 1, i);
+                }
             }
-        }
+            break;
+
+        case 4: // Brightness
+
+            std::cout << "Value for increase/decrease: ";
+            std::cin >> bright;
+
+            for(size_t i = 0; i < img.cols; i++)
+            {
+                for(size_t j = 0; j < img.rows; j++)
+                {   
+                    for( int c = 0; c < img.channels(); c++ ) {
+                    out.at<Vec3b>(j,i)[c] = saturate_cast<uchar>(img.at<Vec3b>(j, i)[c] + bright);
+
+                    }         
+                }
+            }
+
+            break;
+
+        case 5: // Rotation
+
+            std::cout << "Times to rotate: ";
+            std::cin >> n;
+
+            for(size_t i = 0; i < img.cols; i++)
+            {
+                for(size_t j = 0; j < img.rows; j++)
+                {            
+                    out.at<Vec3b>(j, i) = img.at<Vec3b>(img.cols - i, img.rows - j);
+                    
+                }
+            }
+
+            break;
+
+        default:
+            std::cout << "Número inválido" << std::endl;
+            break;
     }
 
     imwrite(argv[argc-1], out);
