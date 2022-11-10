@@ -9,7 +9,7 @@
 #include "BitSet.h"
 #include "BitStream.h"
 
-#define BREAK(expr) if(!expr) goto end;
+#define BREAK_ALL(expr) if(expr) goto end;
 
 class GolombCoder
 {
@@ -121,7 +121,7 @@ public:
 
             for(; q < UINT64_MAX; q++)
             {
-                BREAK(bs.ReadBit(bit));
+                BREAK_ALL(!bs.ReadBit(bit));
                 if(bit) break;
             }
 
@@ -129,14 +129,14 @@ public:
 
             for(size_t i = 0; i < b; i++)
             {
-                BREAK(bs.ReadBit(bit));
+                BREAK_ALL(!bs.ReadBit(bit));
                 SetBit(r, 63-b+i+1, bit);
             }
 
             if(r >= pow(2, b+1) - m)
             {
                 r <<= 1;
-                BREAK(bs.ReadBit(bit));
+                BREAK_ALL(!bs.ReadBit(bit));
                 SetBit(r, 63, bit);
                 r = r - pow(2, b+1) + m;
             }
