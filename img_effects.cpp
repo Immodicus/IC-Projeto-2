@@ -44,17 +44,17 @@ int main(int argc, char** argv)
 
         case 1: // Invert    
             for(size_t i = 0; i < img.cols; i++)
-        {
-            for(size_t j = 0; j < img.rows; j++)
-            {            
-                Vec3b p = img.at<Vec3b>(j, i);
-                uchar red = 255 - p[0];
-                uchar green = 255 - p[1];
-                uchar blue = 255 - p[2];
+            {
+                for(size_t j = 0; j < img.rows; j++)
+                {            
+                    Vec3b p = img.at<Vec3b>(j, i);
+                    uchar red = 255 - p[0];
+                    uchar green = 255 - p[1];
+                    uchar blue = 255 - p[2];
 
-                out.at<Vec3b>(j, i) = Vec3b(red, green, blue);
+                    out.at<Vec3b>(j, i) = Vec3b(red, green, blue);
+                }
             }
-        }
             break;
 
         case 2: // MirrorHorizontal
@@ -96,19 +96,25 @@ int main(int argc, char** argv)
             break;
 
         case 5: // Rotation
-
-            std::cout << "Times to rotate: ";
-            std::cin >> n;
-
-            for(size_t i = 0; i < img.cols; i++)
             {
-                for(size_t j = 0; j < img.rows; j++)
-                {            
-                    out.at<Vec3b>(j, i) = img.at<Vec3b>(img.cols - i, img.rows - j);
+                std::cout << "Times to rotate: ";
+                std::cin >> n;
+
+                for(size_t r = 0; r < n; r++)
+                {
+                    out = Mat(img.cols, img.rows, CV_8UC3);
+
+                    for(size_t j = 0; j < img.rows; j++)
+                    {
+                        for(size_t i = 0; i < img.cols; i++)
+                        {            
+                            out.at<Vec3b>(i, img.rows - j - 1) = img.at<Vec3b>(j, i);                            
+                        }
+                    }
                     
+                    out.copyTo(img);
                 }
             }
-
             break;
 
         default:
