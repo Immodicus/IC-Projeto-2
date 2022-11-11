@@ -77,7 +77,7 @@ private:
 		Flush();
 		iBufferStart = pos;
 		iCurBufferSize = iMaxBufferSize;
-		iFileLength += iMaxBufferSize;
+		iFileLength = iBufferStart + iMaxBufferSize;
 		iLastWrittenPos = -1;
 		memset(vBuffer.data(), 0, vBuffer.size());
 		bExtended = true;
@@ -96,7 +96,7 @@ private:
 			fwrite(vBuffer.data(), sizeof(int8_t), iLastWrittenPos + 1, fPtr);
 			if (bExtended)
 			{
-				iFileLength = (iBufferStart + iLastWrittenPos);
+				iFileLength = (iBufferStart + iLastWrittenPos + 1);
 			}
 		}
 	}
