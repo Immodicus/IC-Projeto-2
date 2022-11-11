@@ -96,7 +96,7 @@ private:
 			fwrite(vBuffer.data(), sizeof(int8_t), iLastWrittenPos + 1, fPtr);
 			if (bExtended)
 			{
-				iFileLength = (iBufferStart + iLastWrittenPos + 1);
+				iFileLength = (iBufferStart + iLastWrittenPos);
 			}
 		}
 	}
