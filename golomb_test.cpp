@@ -6,7 +6,7 @@ int main()
 {
     for(size_t m = 2; m < 512; m++)
     {
-        for(int64_t n = 0; n < 1000 * 128; n++)
+        for(int64_t n = -(1000 * 128); n < 1000 * 128; n++)
         {
             BitSet b = GolombCoder::Encode(n, m);
             //std::cout << "i: " << n << "\n";
@@ -17,17 +17,25 @@ int main()
 
     BitStream* out = new BitStream("test.col", "w+");
 
-    int64_t a = 45-50;
-    uint64_t b = 453;
-    uint64_t c = 136453;
-    uint64_t d = 5000000;
+    uint64_t a = 5;
+    int64_t b = -5;
+    uint64_t c = 453;
+    int64_t d = -453;
+    uint64_t e = 136453;
+    int64_t f = -136453;
+    uint64_t g = 5000000;
+    int64_t h = -5000000;
 
     uint64_t m = 256;
 
-    out->WriteNBits(GolombCoder::Encode(a, m));
-    out->WriteNBits(GolombCoder::Encode(b, m));
-    out->WriteNBits(GolombCoder::Encode(c, m));
-    out->WriteNBits(GolombCoder::Encode(d, m));
+    assert(out->WriteNBits(GolombCoder::Encode(a, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(b, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(c, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(d, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(e, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(f, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(g, m)));
+    assert(out->WriteNBits(GolombCoder::Encode(h, m)));
 
     delete out;
 

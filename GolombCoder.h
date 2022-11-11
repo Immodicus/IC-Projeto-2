@@ -35,12 +35,14 @@ private:
 public:
     static BitSet Encode(int64_t i, uint64_t m)
     {
+        bool sign = i > 0;
+        
         uint64_t q = abs(i) / m;
         uint64_t r = abs(i) % m;
 
         uint64_t b = std::floor(log2(static_cast<double>(m)));
         
-        size_t s = q + 1;
+        size_t s = q + 1 + 1;
 
         if(r < pow(2, b+1) - m) 
         {
@@ -76,6 +78,8 @@ public:
             }
         }
 
+        bs.SetBit(s-1, sign);
+
         return bs;
     }
 
@@ -100,9 +104,11 @@ public:
         if(r >= pow(2, b+1) - m)
         {
             r <<= 1;
-            SetBit(r, 63, bs[bs.size()-1]);
+            SetBit(r, 63, bs[bs.size()-2]);
             r = r - pow(2, b+1) + m;
         }
+
+        if(!bs[bs.size()-1]) return -(q * m + r);
 
         return q * m + r;
     }
@@ -141,8 +147,9 @@ public:
                 r = r - pow(2, b+1) + m;
             }
 
-            // std::cout << "push: " << q * m + r << std::endl;
-            decoded.push_back(q * m + r);
+            bs.ReadBit(bit);
+            if(!bit) decoded.push_back(-(q * m + r));
+            else decoded.push_back(q * m + r);
         }
 
     end:
