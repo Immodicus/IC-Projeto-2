@@ -17,35 +17,28 @@ int main()
 
     BitStream* out = new BitStream("test.col", "w+");
 
-    uint64_t a = 5;
-    int64_t b = -5;
-    uint64_t c = 453;
-    int64_t d = -453;
-    uint64_t e = 136453;
-    int64_t f = -136453;
-    uint64_t g = 5000000;
-    int64_t h = -5000000;
+    std::vector<int64_t> v(0);
 
-    uint64_t m = 256;
+    for(size_t i =0; i < 1000000; i++)
+    {
+        int32_t j = rand() % 32768;
 
-    assert(out->WriteNBits(GolombCoder::Encode(a, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(b, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(c, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(d, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(e, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(f, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(g, m)));
-    assert(out->WriteNBits(GolombCoder::Encode(h, m)));
+        BitSet b = GolombCoder::Encode(j, 2000);
+        out->WriteNBits(b);
+
+        v.push_back(j);
+    }
 
     delete out;
 
     BitStream in("test.col", "r");
 
-    auto result = GolombCoder::Decode(in, m);
+    auto result = GolombCoder::Decode(in, 2000);
 
+    size_t i =0;
     for(auto d : result)
     {
-        std::cout << d << "\n";;
+        assert(d == v[i++]);
     }
 
     return EXIT_SUCCESS;
