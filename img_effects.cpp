@@ -15,16 +15,9 @@ typedef enum Effect
 using namespace cv;
 int main(int argc, char** argv)
 {
-    int eff, bright, n;
-
-    std::cout << "\nInput value for effect wanted:\n-> 1 for Invert\n-> 2 for Mirror Horizontally\n-> 3 for Mirror Vertically\n"
-            << "-> 4 for Increse, Decrease brightness\n-> 5 for Rotations of 90 degrees\n\n"
-            << "-> ";
-    std::cin >> eff;
-
     if(argc < 3)
     {
-        std::cerr << "Invalid usage. Usage: img_cpy original copy\n";
+        std::cerr << "Invalid usage. Usage: ./img_effects original copy\n";
         return 1;
     }
 
@@ -37,6 +30,13 @@ int main(int argc, char** argv)
         std::cout << "Could not read the image: " << image_path << std::endl;
         return 1;
     }
+
+    int eff, bright, n;
+
+    std::cout << "\nInput value for effect wanted:\n-> 1 for Invert\n-> 2 for Mirror Horizontally\n-> 3 for Mirror Vertically\n"
+            << "-> 4 for Increse, Decrease brightness\n-> 5 for Rotations of 90 degrees\n\n"
+            << "-> ";
+    std::cin >> eff;
 
     Mat out(img.rows, img.cols, CV_8UC3);
 
