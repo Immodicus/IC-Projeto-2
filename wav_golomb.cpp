@@ -7,6 +7,8 @@
 #include "BitStream.h"
 #include "GolombCoder.h"
 
+#define VERBOSE(txt) if(verbose) std::cout << txt;
+
 int main(int argc, char** argv)
 {
     if(argc < 3) 
@@ -19,6 +21,7 @@ int main(int argc, char** argv)
 
     bool encode = true;
     bool autoM = true;
+    bool verbose = false;
 
     uint64_t m = 512;
 
@@ -37,6 +40,15 @@ int main(int argc, char** argv)
         {
 			autoM = false;
             m = atoi(argv[n+1]);
+			break;
+		}
+    }
+
+    for(int n = 1 ; n < argc ; n++)
+	{
+        if(std::string(argv[n]) == "-v") 
+        {
+			verbose = true;
 			break;
 		}
     }
@@ -91,7 +103,7 @@ int main(int argc, char** argv)
 
             m = std::ceil((double)totalDiff / (double)samples.size());
 
-            std::cout << "Estimated best m is " << m << std::endl;
+            VERBOSE("Estimated best m is " << m << std::endl);
         }
 
         assert(out.Write(m));
@@ -140,10 +152,10 @@ int main(int argc, char** argv)
         out.writef(samples.data(), nFrames);
     }
 
-    std::cout << "m: " << m << "\n";
-    std::cout << "nChannels: " << nChannels << "\n";
-    std::cout << "nFrames: " << nFrames << "\n";
-    std::cout << "nSampleRate: " << nSampleRate << "\n";
+    VERBOSE("m: " << m << "\n");
+    VERBOSE("nChannels: " << nChannels << "\n");
+    VERBOSE("nFrames: " << nFrames << "\n");
+    VERBOSE("nSampleRate: " << nSampleRate << "\n");
 
     return EXIT_SUCCESS;
 }
