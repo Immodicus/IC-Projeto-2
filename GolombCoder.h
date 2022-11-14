@@ -31,6 +31,16 @@ private:
         }
     }
 
+    static int64_t Quantize(int64_t s, uint8_t bBits)
+    {
+        double sample = static_cast<double>(s);
+        double delta = pow(2, 16 - bBits);
+
+        double result = delta * (std::floor(sample / delta) + 0.5);
+
+        return static_cast<int64_t>(result);
+    }
+
 
 public:
     static BitSet Encode(int64_t i, uint64_t m)
@@ -68,7 +78,7 @@ public:
                 bs.SetBit(k, GetBit(r, 63-h));
             }
         }
-        else // code the number r + 2 b + 1 − M {\displaystyle r+2^{b+1}-M} {\displaystyle r+2^{b+1}-M} in binary representation using b + 1 bits.
+        else // code the number r+2^{b+1}-M} in binary representation using b + 1 bits.
         {
             r = r + static_cast<uint64_t>(pow(2, b+1)) - m;
 

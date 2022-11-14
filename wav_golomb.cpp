@@ -13,7 +13,7 @@ int main(int argc, char** argv)
     {
 		std::cerr << "Usage: wav_golomb [ -m [auto|value] (def. auto) ]\n";
         std::cerr << "                  [ -d (decode)]\n";
-		std::cerr << "                  wavFileIn wavFileOut\n";
+		std::cerr << "                  fileIn fileOut\n";
 		return 1;
 	}
 
@@ -121,11 +121,6 @@ int main(int argc, char** argv)
         assert(in.Read(nFrames));
         assert(in.Read(nSampleRate));
 
-        std::cout << "m: " << m << "\n";
-        std::cout << "nChannels: " << nChannels << "\n";
-        std::cout << "nFrames: " << nFrames << "\n";
-        std::cout << "nSampleRate: " << nSampleRate << "\n";
-
         SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, nSampleRate};
 
         auto results = GolombCoder::Decode(in, m);
@@ -144,4 +139,11 @@ int main(int argc, char** argv)
 
         out.writef(samples.data(), nFrames);
     }
+
+    std::cout << "m: " << m << "\n";
+    std::cout << "nChannels: " << nChannels << "\n";
+    std::cout << "nFrames: " << nFrames << "\n";
+    std::cout << "nSampleRate: " << nSampleRate << "\n";
+
+    return EXIT_SUCCESS;
 }
