@@ -13,15 +13,28 @@ int main(int argc, char** argv)
 {
     if(argc < 3)
     {
-        std::cerr << "Invalid usage. Usage: img_codec fileIn fileOut\n";
+        std::cerr << "Usage: img_codec  [ -m [auto|value] (def. auto) ]\n";
+        std::cerr << "                  [ -d (decode)]\n";
+		std::cerr << "                  fileIn fileOut\n";
         return 1;
     }
 
+    bool autoM = true;
     bool encode = true;
     bool verbose = false;
     uint64_t m = 6;
 
-    for(int n = 1 ; n < argc ; n++)
+    for(int n = 1; n < argc; n++)
+	{
+        if(std::string(argv[n]) == "-m") 
+        {
+            autoM = false;
+            m = atoi(argv[n+1]);
+			break;
+		}
+    }
+
+    for(int n = 1; n < argc; n++)
 	{
         if(std::string(argv[n]) == "-d") 
         {
@@ -30,7 +43,7 @@ int main(int argc, char** argv)
 		}
     }
 
-    for(int n = 1 ; n < argc ; n++)
+    for(int n = 1; n < argc; n++)
 	{
         if(std::string(argv[n]) == "-v") 
         {
@@ -140,10 +153,13 @@ int main(int argc, char** argv)
             }
         }
 
-        m = std::ceil((double)totalDiff / (double)(img.rows * img.cols * 3));
-
         VERBOSE("Image is: " << img.rows << " x " << img.cols << "\n");
-        VERBOSE("Auto determined m is: " << m << "\n");
+
+        if(autoM)
+        {
+            m = std::ceil((double)totalDiff / (double)(img.rows * img.cols * 3));
+            VERBOSE("Auto determined m is: " << m << "\n");
+        }
         
         assert(out.Write(img.rows));
         assert(out.Write(img.cols));
