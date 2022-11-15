@@ -87,20 +87,41 @@ int main(int argc, char** argv)
         std::vector<int16_t> samples(sfhIn.frames() * sfhIn.channels());
         sfhIn.readf(samples.data(), sfhIn.frames());
 
-        int16_t lastSample = 0;
+        std::vector<int16_t> residuals(sfhIn.frames() * sfhIn.channels());
+        residuals.clear();
+
         uint64_t writtenBits = 0;
         uint64_t totalDiff = 0;
 
-        if(autoM)
+        for(size_t f = 0; f < sfhIn.frames(); f++)
         {
-            for(const auto sample : samples)
-            {
-                int16_t diff = sample - lastSample;
-                lastSample = sample;
+            int16_t lsample = samples[f * 2];
+            int16_t rsample = samples[f * 2 + 1];
 
-                totalDiff += abs(diff);
+            int16_t ldiff;
+            int16_t rdiff;
+
+            if(f > 2)
+            {
+                ldiff = lsample - (3 * samples[(f-1) * 2] - 3 * samples[(f-2) * 2] + samples[(f-3) * 2]);
+                rdiff = rsample - (3 * samples[(f-1) * 2 + 1] - 3 * samples[(f-2) * 2 + 1] + samples[(f-3) * 2 + 1]);
+            }
+            else
+            {
+                ldiff = lsample;
+                rdiff = rsample;
             }
 
+            residuals.push_back(ldiff);
+            residuals.push_back(rdiff);
+
+            totalDiff += abs(ldiff);
+            totalDiff += abs(rdiff);
+        }
+
+
+        if(autoM)
+        {
             m = std::ceil((double)totalDiff / (double)samples.size());
 
             VERBOSE("Estimated best m is " << m << std::endl);
@@ -111,18 +132,15 @@ int main(int argc, char** argv)
         assert(out.Write(nFrames));
         assert(out.Write(nSampleRate));
 
-        lastSample = 0;
-        for(const auto sample : samples)
+        for(const auto residual : residuals)
         {
-            int16_t diff = sample - lastSample;
-
-            lastSample = sample;
-
-            BitSet bs = GolombCoder::Encode(diff, m);
+            BitSet bs = GolombCoder::Encode(residual, m);
             writtenBits += bs.size();
 
             assert(out.WriteNBits(bs));
         }
+
+        VERBOSE("Written: " << writtenBits << " bits\n");
     }
     else
     {       
@@ -135,18 +153,32 @@ int main(int argc, char** argv)
 
         SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, nSampleRate};
 
-        auto results = GolombCoder::Decode(in, m);
+        auto residuals = GolombCoder::Decode(in, m);
 
         std::vector<int16_t> samples(nChannels * nFrames);
         samples.clear();
 
-        int16_t lastSample = 0;
-        for(const auto diff : results)
+        for(size_t f = 0; f < nFrames; f++)
         {
-            int16_t sample = lastSample + diff;
-            lastSample = sample;
+            int16_t ldiff = residuals[f * 2];
+            int16_t rdiff = residuals[f * 2 + 1];
+
+            int16_t lsample;
+            int16_t rsample;
+
+            if(f > 2)
+            {
+                lsample = ldiff + (3 * samples[(f-1) * 2] - 3 * samples[(f-2) * 2] + samples[(f-3) * 2]);
+                rsample = rdiff + (3 * samples[(f-1) * 2 + 1] - 3 * samples[(f-2) * 2 + 1] + samples[(f-3) * 2 + 1]);
+            }
+            else
+            {
+                lsample = ldiff;
+                rsample = rdiff;
+            }
             
-            samples.push_back(sample);
+            samples.push_back(lsample);
+            samples.push_back(rsample);
         }
 
         out.writef(samples.data(), nFrames);
