@@ -48,11 +48,14 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
+        VERBOSE("Beginning encoding process...\n");
+
         BitStream out(argv[argc-1], "w+");
 
-        assert(out.Write(img.rows));
-        assert(out.Write(img.cols));
+        std::vector<int16_t> predictions(img.rows * img.cols * 3);
+        predictions.clear();
 
+        uint64_t totalDiff = 0;
         for(size_t row = 0; row < img.rows; row++)
         {            
             for(size_t col = 0; col < img.cols; col++)
@@ -112,13 +115,13 @@ int main(int argc, char** argv)
                     int16_t gDiff = x[1] - xg;
                     int16_t bDiff = x[2] - xb;
 
-                    BitSet rBs = GolombCoder::Encode(rDiff, m);
-                    BitSet gBs = GolombCoder::Encode(gDiff, m);
-                    BitSet bBs = GolombCoder::Encode(bDiff, m);
+                    totalDiff += abs(rDiff);
+                    totalDiff += abs(gDiff);
+                    totalDiff += abs(bDiff);
 
-                    assert(out.WriteNBits(rBs));
-                    assert(out.WriteNBits(gBs));
-                    assert(out.WriteNBits(bBs));
+                    predictions.push_back(rDiff);
+                    predictions.push_back(gDiff);
+                    predictions.push_back(bDiff);
                 }
                 else
                 {
@@ -126,14 +129,34 @@ int main(int argc, char** argv)
                     xg = x[1];
                     xb = x[2];
 
-                    BitSet rBs = GolombCoder::Encode(xr, m);
-                    BitSet gBs = GolombCoder::Encode(xg, m);
-                    BitSet bBs = GolombCoder::Encode(xb, m);
+                    totalDiff += abs(xr);
+                    totalDiff += abs(xg);
+                    totalDiff += abs(xb);
 
-                    assert(out.WriteNBits(rBs));
-                    assert(out.WriteNBits(gBs));
-                    assert(out.WriteNBits(bBs));
+                    predictions.push_back(xr);
+                    predictions.push_back(xg);
+                    predictions.push_back(xb);
                 }
+            }
+        }
+
+        m = std::ceil((double)totalDiff / (double)(img.rows * img.cols * 3));
+
+        VERBOSE("Image is: " << img.rows << " x " << img.cols << "\n");
+        VERBOSE("Auto determined m is: " << m << "\n");
+        
+        assert(out.Write(img.rows));
+        assert(out.Write(img.cols));
+        assert(out.Write(m));
+
+        uint64 p = 0;
+        for(size_t row = 0; row < img.rows; row++)
+        {
+            for(size_t col = 0; col < img.cols; col++)
+            {
+                out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
+                out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
+                out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
             }
         }
     }
@@ -145,6 +168,11 @@ int main(int argc, char** argv)
         int cols;
         assert(in.Read(rows));
         assert(in.Read(cols));
+        assert(in.Read(m));
+
+        VERBOSE("Beginning decoding process...\n");
+        VERBOSE("Image is: " << rows << " x " << cols << "\n");
+        VERBOSE("m is: " << m << "\n");
 
         Mat out(rows, cols, CV_8UC3);
 
@@ -223,6 +251,8 @@ int main(int argc, char** argv)
 
         imwrite(argv[argc-1], out);
     }
+
+    VERBOSE("Done\n");
 
     return EXIT_SUCCESS;
 }
