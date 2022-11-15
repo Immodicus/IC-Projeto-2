@@ -17,6 +17,9 @@ target_link_libraries( img_cpy ${OpenCV_LIBS} )
 add_executable( img_effects img_effects.cpp )
 target_link_libraries( img_effects ${OpenCV_LIBS} )
 
+add_executable( img_codec img_codec.cpp )
+target_link_libraries( img_codec ${OpenCV_LIBS} )
+
 add_executable( golomb_test golomb_test.cpp )
 
 add_executable( wav_golomb wav_golomb.cpp)
