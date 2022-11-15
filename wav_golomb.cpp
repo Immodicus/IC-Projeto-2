@@ -6,6 +6,7 @@
 
 #include "BitStream.h"
 #include "GolombCoder.h"
+#include "AudioPredictors.h"
 
 #define VERBOSE(txt) if(verbose) std::cout << txt;
 
@@ -53,6 +54,8 @@ int main(int argc, char** argv)
 		}
     }
 
+    uint8_t predictor;
+
     uint16_t nChannels;
     uint64_t nFrames;
     uint32_t nSampleRate;
@@ -78,6 +81,13 @@ int main(int argc, char** argv)
             return 1;
         }
 
+        std::cout << "Please select a predictor\n";
+        std::cout << "1 - First order polinomial predictor\n";
+        std::cout << "2 - Second order polinomial predictor\n";
+        std::cout << "3 - Third order polinomial predictor\n\n";
+        std::cout << "Predictor: ";
+        std::cin >> predictor;
+
         BitStream out(argv[argc-1], "w+");
         
         nChannels = sfhIn.channels();
@@ -87,38 +97,22 @@ int main(int argc, char** argv)
         std::vector<int16_t> samples(sfhIn.frames() * sfhIn.channels());
         sfhIn.readf(samples.data(), sfhIn.frames());
 
-        std::vector<int16_t> residuals(sfhIn.frames() * sfhIn.channels());
-        residuals.clear();
-
         uint64_t writtenBits = 0;
         uint64_t totalDiff = 0;
 
-        for(size_t f = 0; f < sfhIn.frames(); f++)
+        std::vector<int16_t> residuals;
+        if(predictor == 3)
         {
-            int16_t lsample = samples[f * 2];
-            int16_t rsample = samples[f * 2 + 1];
-
-            int16_t ldiff;
-            int16_t rdiff;
-
-            if(f > 2)
-            {
-                ldiff = lsample - (3 * samples[(f-1) * 2] - 3 * samples[(f-2) * 2] + samples[(f-3) * 2]);
-                rdiff = rsample - (3 * samples[(f-1) * 2 + 1] - 3 * samples[(f-2) * 2 + 1] + samples[(f-3) * 2 + 1]);
-            }
-            else
-            {
-                ldiff = lsample;
-                rdiff = rsample;
-            }
-
-            residuals.push_back(ldiff);
-            residuals.push_back(rdiff);
-
-            totalDiff += abs(ldiff);
-            totalDiff += abs(rdiff);
+            residuals = AudioPredictors::ThirdOrderPolEnc(samples, nFrames, nChannels, totalDiff);
         }
-
+        else if(predictor == 2)
+        {
+            residuals = AudioPredictors::SecondOrderPolEnc(samples, nFrames, nChannels, totalDiff);
+        }
+        else
+        {
+            residuals = AudioPredictors::FirstOrderPolEnc(samples, nFrames, nChannels, totalDiff);
+        }
 
         if(autoM)
         {
@@ -127,6 +121,7 @@ int main(int argc, char** argv)
             VERBOSE("Estimated best m is " << m << std::endl);
         }
 
+        assert(out.Write(predictor));
         assert(out.Write(m));
         assert(out.Write(nChannels));
         assert(out.Write(nFrames));
@@ -146,39 +141,31 @@ int main(int argc, char** argv)
     {       
         BitStream in(argv[argc-2], "r");
 
+        assert(in.Read(predictor));
         assert(in.Read(m));
         assert(in.Read(nChannels));
         assert(in.Read(nFrames));
         assert(in.Read(nSampleRate));
 
+        VERBOSE("Predictor: " << predictor << "\n");
+
         SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, nSampleRate};
 
         auto residuals = GolombCoder::Decode(in, m);
 
-        std::vector<int16_t> samples(nChannels * nFrames);
-        samples.clear();
+        std::vector<int16_t> samples;
 
-        for(size_t f = 0; f < nFrames; f++)
+        if(predictor == 3)
         {
-            int16_t ldiff = residuals[f * 2];
-            int16_t rdiff = residuals[f * 2 + 1];
-
-            int16_t lsample;
-            int16_t rsample;
-
-            if(f > 2)
-            {
-                lsample = ldiff + (3 * samples[(f-1) * 2] - 3 * samples[(f-2) * 2] + samples[(f-3) * 2]);
-                rsample = rdiff + (3 * samples[(f-1) * 2 + 1] - 3 * samples[(f-2) * 2 + 1] + samples[(f-3) * 2 + 1]);
-            }
-            else
-            {
-                lsample = ldiff;
-                rsample = rdiff;
-            }
-            
-            samples.push_back(lsample);
-            samples.push_back(rsample);
+            samples = AudioPredictors::ThirdOrderPolDec(residuals, nFrames, nChannels);
+        }
+        else if(predictor == 2)
+        {
+            samples = AudioPredictors::SecondOrderPolDec(residuals, nFrames, nChannels);
+        }
+        else
+        {
+            samples = AudioPredictors::FirstOrderPolDec(residuals, nFrames, nChannels);            
         }
 
         out.writef(samples.data(), nFrames);
