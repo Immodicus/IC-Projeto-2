@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 		}
     }
 
-    uint8_t predictor;
+    uint16_t predictor;
 
     uint16_t nChannels;
     uint64_t nFrames;
