@@ -84,7 +84,8 @@ int main(int argc, char** argv)
         std::cout << "Please select a predictor\n";
         std::cout << "1 - First order polinomial predictor\n";
         std::cout << "2 - Second order polinomial predictor\n";
-        std::cout << "3 - Third order polinomial predictor\n\n";
+        std::cout << "3 - Third order polinomial predictor\n";
+        std::cout << "4 - Inter Channel predictor\n\n";
         std::cout << "Predictor: ";
         std::cin >> predictor;
 
@@ -109,9 +110,13 @@ int main(int argc, char** argv)
         {
             residuals = AudioPredictors::SecondOrderPolEnc(samples, nFrames, nChannels, totalDiff);
         }
-        else
+        else if(predictor == 3)
         {
             residuals = AudioPredictors::FirstOrderPolEnc(samples, nFrames, nChannels, totalDiff);
+        }
+        else
+        {
+            residuals = AudioPredictors::InterChannelEnc(samples, nFrames, nChannels, totalDiff);
         }
 
         if(autoM)
@@ -163,9 +168,13 @@ int main(int argc, char** argv)
         {
             samples = AudioPredictors::SecondOrderPolDec(residuals, nFrames, nChannels);
         }
-        else
+        else if(predictor == 3)
         {
             samples = AudioPredictors::FirstOrderPolDec(residuals, nFrames, nChannels);            
+        }
+        else
+        {
+            samples = AudioPredictors::InterChannelDec(residuals, nFrames, nChannels);     
         }
 
         out.writef(samples.data(), nFrames);

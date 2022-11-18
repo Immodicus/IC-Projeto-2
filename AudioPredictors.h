@@ -206,4 +206,43 @@ public:
 
         return samples;
     }
+
+    static std::vector<int16_t> InterChannelEnc(const std::vector<int16_t>& samples, uint64_t nFrames, int nChannels, uint64_t& totalDiff)
+    {
+        std::vector<int16_t> residuals(nFrames * nChannels);
+        residuals.clear();
+
+        totalDiff = 0;
+
+        for(size_t f = 0; f < nFrames; f++)
+        {
+            int16_t lsample = samples[f * 2];
+            int16_t rsample = samples[f * 2 + 1];
+
+            residuals.push_back(lsample);
+            residuals.push_back(lsample - rsample);
+
+            totalDiff += abs(lsample);
+            totalDiff += abs(lsample - rsample);
+        }
+
+        return residuals;
+    }
+
+    static std::vector<int16_t> InterChannelDec(const std::vector<int64_t>& residuals, uint64_t nFrames, int nChannels)
+    {
+        std::vector<int16_t> samples(nChannels * nFrames);
+        samples.clear();
+
+        for(size_t f = 0; f < nFrames; f++)
+        {
+            int16_t lsample = residuals[f * 2];
+            int16_t rdiff = residuals[f * 2 + 1];
+            
+            samples.push_back(lsample);
+            samples.push_back(lsample - rdiff);
+        }
+
+        return samples;
+    }
 };
