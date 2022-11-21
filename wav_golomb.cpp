@@ -10,12 +10,52 @@
 
 #define VERBOSE(txt) if(verbose) std::cout << txt;
 
+std::vector<int16_t> Quantize(const std::vector<int16_t>& vec, uint8_t bBits, uint64_t& totalDiff)
+{
+    std::vector<int16_t> results(vec.size());
+    results.clear();
+
+    totalDiff = 0;
+
+    const double delta = pow(2, 16 - bBits);
+
+    for(const auto r : vec)
+    {
+        double sample = static_cast<double>(r);
+
+        double result = delta * (std::floor(sample / delta) + 0.5);
+
+        int16_t res = static_cast<int16_t>(result) / delta;
+        totalDiff += abs(res);
+
+        results.push_back(res);
+    }
+
+    return results;
+}
+
+std::vector<int16_t> Dequantize(const std::vector<int16_t>& vec, uint8_t bBits)
+{
+    std::vector<int16_t> results(vec.size());
+    results.clear();
+
+    const double delta = pow(2, 16 - bBits);
+
+    for(const auto r : vec)
+    {
+        results.push_back(r * delta);
+    }
+
+    return results;
+}
+
 int main(int argc, char** argv)
 {
     if(argc < 3) 
     {
 		std::cerr << "Usage: wav_golomb [ -m [auto|value] (def. auto) ]\n";
         std::cerr << "                  [ -d (decode)]\n";
+        std::cerr << "                  [ -l (loss)]\n";
 		std::cerr << "                  fileIn fileOut\n";
 		return 1;
 	}
@@ -23,6 +63,9 @@ int main(int argc, char** argv)
     bool encode = true;
     bool autoM = true;
     bool verbose = false;
+    bool lossy = false;
+
+    uint32_t nBits = 0;
 
     uint64_t m = 512;
 
@@ -50,6 +93,16 @@ int main(int argc, char** argv)
         if(std::string(argv[n]) == "-v") 
         {
 			verbose = true;
+			break;
+		}
+    }
+
+    for(int n = 1 ; n < argc ; n++)
+	{
+        if(std::string(argv[n]) == "-l") 
+        {
+			lossy = true;
+            nBits = atoi(argv[n+1]);
 			break;
 		}
     }
@@ -119,6 +172,13 @@ int main(int argc, char** argv)
             residuals = AudioPredictors::InterChannelEnc(samples, nFrames, nChannels, totalDiff);
         }
 
+        if(lossy)
+        {
+            VERBOSE("Lossy compression selected\n");
+            VERBOSE("nBits: " << nBits << "\n");
+            residuals = Quantize(residuals, nBits, totalDiff);
+        }
+
         if(autoM)
         {
             m = std::ceil((double)totalDiff / (double)samples.size());
@@ -126,6 +186,7 @@ int main(int argc, char** argv)
             VERBOSE("Estimated best m is " << m << std::endl);
         }
 
+        assert(out.Write(nBits));
         assert(out.Write(predictor));
         assert(out.Write(m));
         assert(out.Write(nChannels));
@@ -146,6 +207,7 @@ int main(int argc, char** argv)
     {       
         BitStream in(argv[argc-2], "r");
 
+        assert(in.Read(nBits));
         assert(in.Read(predictor));
         assert(in.Read(m));
         assert(in.Read(nChannels));
@@ -175,6 +237,11 @@ int main(int argc, char** argv)
         else
         {
             samples = AudioPredictors::InterChannelDec(residuals, nFrames, nChannels);     
+        }
+
+        if(nBits != 0)
+        {
+            samples = Dequantize(samples, nBits);
         }
 
         out.writef(samples.data(), nFrames);
