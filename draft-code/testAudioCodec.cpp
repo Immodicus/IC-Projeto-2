@@ -1,6 +1,10 @@
-// g++ testAudioCodec.cpp -o testAudioCodec -lsndfile -I /usr/local/include/python3.8 -lpython3.8
+/* first do this
+ * sudo apt-get update
+ * sudo apt-get install python3-matplotlib
+*/
+
+// g++ testAudioCodec.cpp -o  testAudioCodec -lsndfile -I /usr/include/python3.8 -lpython3.8
 #include "AudioCodec.cpp"
-#include <sndfile.h>
 #include <ctime>
 
 int main(int argc, char *argv[])
@@ -39,13 +43,23 @@ int main(int argc, char *argv[])
     }
 
     clock_t begin = clock();
-    comp.compress("fcompress.bin", op2, op1, bits);
+    comp.compress("compress.bin", op2, op1, bits);
     clock_t end = clock();
     cout << "Duration: " << (double(end - begin) / CLOCKS_PER_SEC) << endl;
     printf("... done encoding\n\n");
 
-    comp.decompress("fcompress.bin");
+    comp.decompress("compress.bin");
     printf("... done decompress\n\n");
 
+    char op3 = 0;
+    while (!(op3 == 'y' || op3 == 'n'))
+    {
+        cout << "Calculate the histograms and entropy value of the residuals (y/n)? ";
+        cin >> op3;
+    }
+    if (op3 == 'y')
+    {
+        comp.showHistEnt();
+    }
     return 0;
 }

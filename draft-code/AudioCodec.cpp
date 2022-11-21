@@ -6,19 +6,22 @@
 #include <sndfile.h>
 #include <math.h>
 #include <vector>
+#include "matplotlibcpp.h"
 #include <map>
 
 using namespace std;
+namespace plt = matplotlibcpp;
 
 AudioCodec::AudioCodec() {}
 
-AudioCodec::AudioCodec(const char *fname)
+AudioCodec::AudioCodec(const char *filename)
 {
+
     SNDFILE *infile;
     int readcount;
     short ch[2];
 
-    if (!(infile = sf_open(fname, SFM_READ, &sfinfo)))
+    if (!(infile = sf_open(filename, SFM_READ, &sfinfo)))
     {
         cout << "File doesn't exists" << endl;
         exit(EXIT_FAILURE);
@@ -32,56 +35,198 @@ AudioCodec::AudioCodec(const char *fname)
 
     sf_close(infile);
 }
-void AudioCodec::compress(const char *fDst, int num, bool lossy, int shamt)
+
+void AudioCodec::compress(const char *fileDst, int num, bool lossy, int shamt)
 {
-    num_in = num;
+
+    ninput = num;
+
     if (lossy)
-    {
-        lossyPredictor(chs, shamt);
-    }
+        preditorLossy(chs, shamt);
     else
-    {
-        losslessPredictor(chs);
-    }
+        preditor(chs);
+
     cout << "start encoding..." << endl;
 
-    // now we use Golomb code
-    Golomb gol(fDst, 'e', 0);
+    // Golomb
+    Golomb g(fileDst, 'e', 0);
 
     double m = 0;
     for (int i = 0; i < rn.size(); i++)
     {
-        m = m + gol.fold(rn[i]);
+        m += g.fold(rn[i]);
     }
     m = m / rn.size();
-    m = (int)ceil(-1 / log2(m / (m + 1)));
 
-    gol.setM(m);
-    gol.encodeM(m);
-    gol.encodeHeaderSound(sfinfo.frames, sfinfo.samplerate, sfinfo.channels, sfinfo.format, lossy);
+    m = (int)ceil(-1 / (log2(m / (m + 1))));
+
+    g.setM(m);
+    g.encodeM(m);
+    g.encodeHeaderSound(sfinfo.frames, sfinfo.samplerate, sfinfo.channels, sfinfo.format, lossy);
     if (lossy)
-    {
-        gol.encondeShamt(shamt);
+        g.encondeShamt(shamt);
 
-        for (int i = 0; i < rn.size(); i++)
+    for (int i = 0; i < rn.size(); i++)
+    {
+        g.encode(rn[i]);
+    }
+    g.close();
+}
+
+void AudioCodec::preditor(vector<short> vetSrc)
+{
+    vector<short> left;
+    vector<short> right;
+    for (int i = 0; i < chs.size() - 1; i += 2)
+    {
+        left.push_back(chs[i]);
+        right.push_back(chs[i + 1]);
+    }
+
+    vector<short> xnl, xnr;
+
+    if (ninput == 1)
+    {
+        for (int i = 0; i < left.size(); i++)
         {
-            gol.encode(rn[i]);
+            if (i == 0)
+            {
+                xnl.push_back(0);
+                xnr.push_back(0);
+            }
+            else
+            {
+                xnl.push_back(left[i - 1]);
+                xnr.push_back(right[i - 1]);
+            }
+            rn.push_back(left[i] - xnl[i]);
+            rn.push_back(right[i] - xnr[i]);
         }
-        gol.close();
+    }
+    else if (ninput == 2)
+    {
+        for (int i = 0; i < left.size(); i++)
+        {
+            if (i == 0 || i == 1)
+            {
+                xnl.push_back(0);
+                xnr.push_back(0);
+            }
+            else
+            {
+                xnl.push_back(2 * left[i - 1] - left[i - 2]);
+                xnr.push_back(2 * right[i - 1] - right[i - 2]);
+            }
+            rn.push_back(left[i] - xnl[i]);
+            rn.push_back(right[i] - xnr[i]);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < left.size(); i++)
+        {
+            if (i == 0 || i == 1 || i == 2)
+            {
+                xnl.push_back(0);
+                xnr.push_back(0);
+            }
+            else
+            {
+                xnl.push_back(3 * left[i - 1] - 3 * left[i - 2] + left[i - 3]);
+                xnr.push_back(3 * right[i - 1] - 3 * right[i - 2] + right[i - 3]);
+            }
+            rn.push_back(left[i] - xnl[i]);
+            rn.push_back(right[i] - xnr[i]);
+        }
     }
 }
-void AudioCodec::decompress(const char *fSrc)
+
+void AudioCodec::preditorLossy(vector<short> vetSrc, int shamt)
+{
+    vector<short> left;
+    vector<short> right;
+    for (int i = 0; i < chs.size() - 1; i += 2)
+    {
+        left.push_back(chs[i]);
+        right.push_back(chs[i + 1]);
+    }
+
+    vector<int> xnr, xnl;
+
+    if (ninput == 1)
+    {
+        for (int i = 0; i < left.size(); i++)
+        {
+            if (i == 0)
+            {
+                xnr.push_back(0);
+                xnl.push_back(0);
+            }
+            else
+            {
+                xnl.push_back(left[i - 1]);
+                xnr.push_back(right[i - 1]);
+            }
+            rn.push_back(((left[i] - xnl[i]) >> shamt));
+            rn.push_back(((right[i] - xnr[i]) >> shamt));
+            left[i] = (rn[2 * i] << shamt) + xnl[i];
+            right[i] = (rn[2 * i + 1] << shamt) + xnr[i];
+        }
+    }
+    else if (ninput == 2)
+    {
+        for (int i = 0; i < left.size(); i++)
+        {
+            if (i == 0 || i == 1)
+            {
+                xnl.push_back(0);
+                xnr.push_back(0);
+            }
+            else
+            {
+                xnl.push_back(2 * left[i - 1] - left[i - 2]);
+                xnr.push_back(2 * right[i - 1] - right[i - 2]);
+            }
+            rn.push_back(((left[i] - xnl[i]) >> shamt));
+            rn.push_back(((right[i] - xnr[i]) >> shamt));
+            left[i] = (rn[2 * i] << shamt) + xnl[i];
+            right[i] = (rn[2 * i + 1] << shamt) + xnr[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < left.size(); i++)
+        {
+            if (i == 0 || i == 1 || i == 2)
+            {
+                xnl.push_back(0);
+                xnr.push_back(0);
+            }
+            else
+            {
+                xnl.push_back(3 * left[i - 1] - 3 * left[i - 2] + left[i - 3]);
+                xnr.push_back(3 * right[i - 1] - 3 * right[i - 2] + right[i - 3]);
+            }
+            rn.push_back(((left[i] - xnl[i]) >> shamt));
+            rn.push_back(((right[i] - xnr[i]) >> shamt));
+            left[i] = (rn[2 * i] << shamt) + xnl[i];
+            right[i] = (rn[2 * i + 1] << shamt) + xnr[i];
+        }
+    }
+}
+
+void AudioCodec::decompress(const char *fileSrc)
 {
     cout << "start decoding..." << endl;
 
-    Golomb gol(fSrc, 'd', 0);
+    Golomb g(fileSrc, 'd', 0);
 
-    int m = gol.decodeM();
+    int m = g.decodeM();
 
-    gol.setM(m);
+    g.setM(m);
 
     int infoDeco[5];
-    gol.decodeHeaderSound(infoDeco);
+    g.decodeHeaderSound(infoDeco);
 
     vector<short> resChs;
     vector<short> resl, resr;
@@ -90,14 +235,14 @@ void AudioCodec::decompress(const char *fSrc)
     // If lossy
     if (infoDeco[0] == 1)
     {
-        int shamt = gol.decodeShamt();
+        int shamt = g.decodeShamt();
         for (int i = 0; i < infoDeco[1] * infoDeco[4]; i++)
-            resChs.push_back(gol.decode() << shamt);
+            resChs.push_back(g.decode() << shamt);
     }
     else
     {
         for (int i = 0; i < infoDeco[1] * infoDeco[4]; i++)
-            resChs.push_back(gol.decode());
+            resChs.push_back(g.decode());
     }
 
     for (int i = 0; i < resChs.size() - 1; i += 2)
@@ -106,12 +251,12 @@ void AudioCodec::decompress(const char *fSrc)
         resr.push_back(resChs[i + 1]);
     }
 
-    gol.close();
+    g.close();
 
     vector<short> resXN;
     vector<short> resHatXl, resHatXr;
 
-    if (num_in == 1)
+    if (ninput == 1)
     {
         resXl.push_back(resl[0]);
         resXr.push_back(resr[0]);
@@ -125,7 +270,7 @@ void AudioCodec::decompress(const char *fSrc)
             resXN.push_back(resXr[i]);
         }
     }
-    else if (num_in == 2)
+    else if (ninput == 2)
     {
         for (int i = 0; i < 2; i++)
         {
@@ -174,145 +319,61 @@ void AudioCodec::decompress(const char *fSrc)
     sfinfoOut.format = infoDeco[3];
     sfinfoOut.frames = infoDeco[1];
 
-    SNDFILE *outfile = sf_open("fout.wav", SFM_WRITE, &sfinfoOut);
+    SNDFILE *outfile = sf_open("out.wav", SFM_WRITE, &sfinfoOut);
     sf_count_t count = sf_write_short(outfile, &resXN[0], resXN.size());
     sf_write_sync(outfile);
     sf_close(outfile);
 }
-void AudioCodec::losslessPredictor(vector<short> vectSample)
+
+void AudioCodec::showHistEnt()
 {
-    vector<short> left;
-    vector<short> right;
-    vector<short> xnl, xnr;
-    for (int i = 0; i < chs.size() - 1; i += 2)
+
+    // Calculate the entropy
+    map<short, int> map_ori, map_afterPred;
+    for (int i = 0; i < (int)chs.size(); i++)
     {
-        left.push_back(chs[i]);
-        right.push_back(chs[i + 1]);
-    }
-    if (num_in == 1)
-    {
-        for (int i = 0; i < left.size(); i++)
-        {
-            if (i == 0)
-            {
-                xnl.push_back(0);
-                xnr.push_back(0);
-            }
-            else
-            {
-                xnl.push_back(left[i - 1]);
-                xnr.push_back(right[i - 1]);
-            }
-            xnl.push_back(left[i] - xnl[i]);
-            xnr.push_back(right[i] - xnr[i]);
-        }
-    }
-    else if (num_in == 2)
-    {
-        for (int i = 0; i < left.size(); i++)
-        {
-            if (i == 0 || i == 1)
-            {
-                xnl.push_back(0);
-                xnr.push_back(0);
-            }
-            else
-            {
-                xnl.push_back(2 * left[i - 1] - left[i - 2]);
-                xnr.push_back(2 * right[i - 1] - right[i - 2]);
-            }
-            rn.push_back(left[i] - xnl[i]);
-            rn.push_back(right[i] - xnr[i]);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < left.size(); i++)
-        {
-            if (i == 0 || i == 1 || i == 2)
-            {
-                xnl.push_back(0);
-                xnr.push_back(0);
-            }
-            else
-            {
-                xnl.push_back(3 * left[i - 1] - 3 * left[i - 2] + left[i - 3]);
-                xnr.push_back(3 * right[i - 1] - 3 * right[i - 2] + right[i - 3]);
-            }
-            rn.push_back(left[i] - xnl[i]);
-            rn.push_back(right[i] - xnr[i]);
-        }
-    }
-}
-void AudioCodec::lossyPredictor(std::vector<short> vectSample, int shamt)
-{
-    vector<short> left;
-    vector<short> right;
-    vector<int> xnr, xnl;
-    for (int i = 0; i < chs.size() - 1; i += 2)
-    {
-        left.push_back(chs[i]);
-        right.push_back(chs[i + 1]);
+        map_ori[chs[i]]++;
+        map_afterPred[rn[i]]++;
     }
 
-    if (num_in == 1)
+    double entropy = 0;
+    double p;
+    for (auto i : map_ori)
     {
-        for (int i = 0; i < left.size(); i++)
-        {
-            if (i == 0)
-            {
-                xnr.push_back(0);
-                xnl.push_back(0);
-            }
-            else
-            {
-                xnl.push_back(left[i - 1]);
-                xnr.push_back(right[i - 1]);
-            }
-            rn.push_back(((left[i] - xnl[i]) >> shamt));
-            rn.push_back(((right[i] - xnr[i]) >> shamt));
-            left[i] = (rn[2 * i] << shamt) + xnl[i];
-            right[i] = (rn[2 * i + 1] << shamt) + xnr[i];
-        }
+        p = (double)i.second / (double)chs.size();
+        entropy += p * (-log2(p));
     }
-    else if (num_in == 2)
+    cout << "Entropy Original: " << entropy << endl;
+
+    double entropy_pred = 0;
+    for (auto i : map_afterPred)
     {
-        for (int i = 0; i < left.size(); i++)
-        {
-            if (i == 0 || i == 1)
-            {
-                xnl.push_back(0);
-                xnr.push_back(0);
-            }
-            else
-            {
-                xnl.push_back(2 * left[i - 1] - left[i - 2]);
-                xnr.push_back(2 * right[i - 1] - right[i - 2]);
-            }
-            rn.push_back(((left[i] - xnl[i]) >> shamt));
-            rn.push_back(((right[i] - xnr[i]) >> shamt));
-            left[i] = (rn[2 * i] << shamt) + xnl[i];
-            right[i] = (rn[2 * i + 1] << shamt) + xnr[i];
-        }
+        p = (double)i.second / (double)rn.size();
+        entropy_pred += p * (-log2(p));
     }
-    else
+    cout << "\nEntropy of the residuals obtained after prediction: " << entropy_pred << endl;
+
+    cout << "\nComparison between the 2 entropies: " << entropy_pred / entropy << endl;
+
+    // show Histo
+    map<short, int> map_pred;
+
+    for (int i = 0; i < (int)rn.size() / 2; i += 2)
     {
-        for (int i = 0; i < left.size(); i++)
-        {
-            if (i == 0 || i == 1 || i == 2)
-            {
-                xnl.push_back(0);
-                xnr.push_back(0);
-            }
-            else
-            {
-                xnl.push_back(3 * left[i - 1] - 3 * left[i - 2] + left[i - 3]);
-                xnr.push_back(3 * right[i - 1] - 3 * right[i - 2] + right[i - 3]);
-            }
-            rn.push_back(((left[i] - xnl[i]) >> shamt));
-            rn.push_back(((right[i] - xnr[i]) >> shamt));
-            left[i] = (rn[2 * i] << shamt) + xnl[i];
-            right[i] = (rn[2 * i + 1] << shamt) + xnr[i];
-        }
+        map_pred[rn[i]]++;
     }
+    plt::figure(1);
+    vector<int> samples;
+    vector<int> occur;
+
+    for (auto i : map_pred)
+    {
+        samples.push_back(i.first);
+        occur.push_back(i.second);
+    }
+    plt::bar(samples, occur);
+    plt::xlabel("Samples");
+    plt::ylabel("Number of occurences");
+    plt::title("Residuals obtained after prediction");
+    plt::show();
 }
