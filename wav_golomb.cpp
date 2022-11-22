@@ -34,15 +34,15 @@ std::vector<int16_t> Quantize(const std::vector<int16_t>& vec, uint8_t bBits, ui
     return results;
 }
 
-std::vector<int16_t> Dequantize(const std::vector<int16_t>& vec, uint8_t bBits)
+std::vector<int64_t> Dequantize(const std::vector<int64_t>& vec, uint8_t bBits)
 {
-    std::vector<int16_t> results(vec.size());
+    std::vector<int64_t> results(vec.size());
     results.clear();
 
     const double delta = pow(2, 16 - bBits);
 
     for(const auto r : vec)
-    {
+    {   
         results.push_back(r * delta);
     }
 
@@ -55,7 +55,7 @@ int main(int argc, char** argv)
     {
 		std::cerr << "Usage: wav_golomb [ -m [auto|value] (def. auto) ]\n";
         std::cerr << "                  [ -d (decode)]\n";
-        std::cerr << "                  [ -l (loss)]\n";
+        std::cerr << "                  [ -l (lossy) nBits]\n";
 		std::cerr << "                  fileIn fileOut\n";
 		return 1;
 	}
@@ -103,6 +103,11 @@ int main(int argc, char** argv)
         {
 			lossy = true;
             nBits = atoi(argv[n+1]);
+            if(nBits == 0 || nBits > 15) 
+            {
+                std::cerr << "Invalid number of bits\n";
+                return EXIT_FAILURE;
+            }
 			break;
 		}
     }
@@ -155,6 +160,14 @@ int main(int argc, char** argv)
         uint64_t totalDiff = 0;
 
         std::vector<int16_t> residuals;
+
+        if(lossy)
+        {
+            VERBOSE("Lossy compression selected\n");
+            VERBOSE("nBits: " << nBits << "\n");
+            samples = Quantize(samples, nBits, totalDiff);
+        }
+
         if(predictor == 3)
         {
             residuals = AudioPredictors::ThirdOrderPolEnc(samples, nFrames, nChannels, totalDiff);
@@ -170,13 +183,6 @@ int main(int argc, char** argv)
         else
         {
             residuals = AudioPredictors::InterChannelEnc(samples, nFrames, nChannels, totalDiff);
-        }
-
-        if(lossy)
-        {
-            VERBOSE("Lossy compression selected\n");
-            VERBOSE("nBits: " << nBits << "\n");
-            residuals = Quantize(residuals, nBits, totalDiff);
         }
 
         if(autoM)
@@ -222,6 +228,13 @@ int main(int argc, char** argv)
 
         std::vector<int16_t> samples;
 
+        if(nBits != 0)
+        {
+            VERBOSE("Lossy mode detected\n");
+            VERBOSE("nBits: " << nBits << "\n");
+            residuals = Dequantize(residuals, nBits);
+        }
+
         if(predictor == 3)
         {
             samples = AudioPredictors::ThirdOrderPolDec(residuals, nFrames, nChannels);
@@ -239,14 +252,10 @@ int main(int argc, char** argv)
             samples = AudioPredictors::InterChannelDec(residuals, nFrames, nChannels);     
         }
 
-        if(nBits != 0)
-        {
-            samples = Dequantize(samples, nBits);
-        }
-
         out.writef(samples.data(), nFrames);
     }
 
+    
     VERBOSE("m: " << m << "\n");
     VERBOSE("nChannels: " << nChannels << "\n");
     VERBOSE("nFrames: " << nFrames << "\n");
