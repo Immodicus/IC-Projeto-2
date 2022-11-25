@@ -10,7 +10,7 @@ e = -sum(p.*log2(p));
 
 %----Audio decoding - 1st. order
 figure(2)
-[audioIn2,fs2] = audioread("sample04_dec_1er.wav");
+[audioIn2,fs2] = audioread("../audio-results/sample04_dec_1er.wav");
 entropy2 = spectralEntropy(audioIn2,fs2);
 %plot(entropy2);
 spectralEntropy(audioIn2,fs2)
