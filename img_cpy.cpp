@@ -23,9 +23,9 @@ int main(int argc, char** argv)
 
     Mat out(img.rows, img.cols, CV_8UC3);
 
-    for(size_t i = 0; i < img.cols; i++)
+    for(size_t i = 0; i < (size_t)img.cols; i++)
     {
-        for(size_t j = 0; j < img.rows; j++)
+        for(size_t j = 0; j < (size_t)img.rows; j++)
         {            
             out.at<Vec3b>(j, i) = img.at<Vec3b>(j, i);
         }
