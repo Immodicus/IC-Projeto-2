@@ -176,13 +176,18 @@ int main(int argc, char** argv)
         {
             residuals = AudioPredictors::SecondOrderPolEnc(samples, nFrames, nChannels, totalDiff);
         }
-        else if(predictor == 3)
+        else if(predictor == 1)
         {
             residuals = AudioPredictors::FirstOrderPolEnc(samples, nFrames, nChannels, totalDiff);
         }
-        else
+        else if(predictor == 4)
         {
             residuals = AudioPredictors::InterChannelEnc(samples, nFrames, nChannels, totalDiff);
+        }
+        else
+        {
+            std::cerr << "Invalid predictor \n";
+            return EXIT_FAILURE;
         }
 
         if(autoM)
@@ -222,7 +227,7 @@ int main(int argc, char** argv)
 
         VERBOSE("Predictor: " << predictor << "\n");
 
-        SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, nSampleRate};
+        SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, (int)nSampleRate};
 
         auto residuals = GolombCoder::Decode(in, m);
 
@@ -243,13 +248,18 @@ int main(int argc, char** argv)
         {
             samples = AudioPredictors::SecondOrderPolDec(residuals, nFrames, nChannels);
         }
-        else if(predictor == 3)
+        else if(predictor == 1)
         {
             samples = AudioPredictors::FirstOrderPolDec(residuals, nFrames, nChannels);            
         }
-        else
+        else if(predictor == 4)
         {
             samples = AudioPredictors::InterChannelDec(residuals, nFrames, nChannels);     
+        }
+        else
+        {
+            std::cerr << "Invalid predictor \n";
+            return EXIT_FAILURE;
         }
 
         out.writef(samples.data(), nFrames);
