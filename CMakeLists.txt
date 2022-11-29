@@ -22,5 +22,8 @@ target_link_libraries( img_codec ${OpenCV_LIBS} )
 
 add_executable( golomb_test golomb_test.cpp )
 
+add_executable( golomb_efficiency golomb_efficiency.cpp )
+target_link_libraries( golomb_efficiency sndfile)
+
 add_executable( wav_golomb wav_golomb.cpp)
 target_link_libraries( wav_golomb sndfile)

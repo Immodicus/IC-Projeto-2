@@ -134,6 +134,23 @@ public:
 		Close();
 	}
 
+	uint64_t CurrentBit()
+	{
+		return iCurBit;
+	}
+
+	void ReadAlign()
+	{
+		bool t;
+		
+		while(iCurBit % 8 != 0) assert(ReadBit(t));
+	}
+
+	void WriteAlign(bool v)
+	{		
+		while(iCurBit % 8 != 0) WriteBit(v);
+	}
+
 	bool End()
 	{
 		if (!IsBitCached(iCurBit))

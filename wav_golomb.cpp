@@ -56,6 +56,7 @@ int main(int argc, char** argv)
 		std::cerr << "Usage: wav_golomb [ -m [auto|value] (def. auto) ]\n";
         std::cerr << "                  [ -d (decode)]\n";
         std::cerr << "                  [ -l (lossy) nBits]\n";
+        std::cerr << "                  [ -bs blockSize (def. 4096)]\n";
 		std::cerr << "                  fileIn fileOut\n";
 		return 1;
 	}
@@ -66,8 +67,8 @@ int main(int argc, char** argv)
     bool lossy = false;
 
     uint32_t nBits = 0;
-
-    uint64_t m = 512;
+    uint16_t m = 512;
+    uint64_t blockSize = 4096;
 
     for(int n = 1 ; n < argc ; n++)
 	{
@@ -93,6 +94,15 @@ int main(int argc, char** argv)
         if(std::string(argv[n]) == "-v") 
         {
 			verbose = true;
+			break;
+		}
+    }
+
+    for(int n = 1 ; n < argc ; n++)
+	{
+        if(std::string(argv[n]) == "-bs") 
+        {
+			blockSize = atoi(argv[n+1]);
 			break;
 		}
     }
@@ -147,89 +157,117 @@ int main(int argc, char** argv)
         std::cout << "Predictor: ";
         std::cin >> predictor;
 
+        if(lossy)
+        {
+            VERBOSE("Lossy compression selected\n");
+            VERBOSE("nBits: " << nBits << "\n");
+        }
+
         BitStream out(argv[argc-1], "w+");
         
         nChannels = sfhIn.channels();
         nFrames = sfhIn.frames();
         nSampleRate = sfhIn.samplerate();
         
-        std::vector<int16_t> samples(sfhIn.frames() * sfhIn.channels());
-        sfhIn.readf(samples.data(), sfhIn.frames());
+        std::vector<int16_t> samples(blockSize * nChannels);
+        uint64_t read = 0;
 
-        uint64_t writtenBits = 0;
-        uint64_t totalDiff = 0;
-
-        std::vector<int16_t> residuals;
-
-        if(lossy)
-        {
-            VERBOSE("Lossy compression selected\n");
-            VERBOSE("nBits: " << nBits << "\n");
-            samples = Quantize(samples, nBits, totalDiff);
-        }
-
-        residuals = AudioPredictors::Encode(samples, nFrames, nChannels, totalDiff, predictor);
-
-        if(autoM)
-        {
-            m = std::ceil((double)totalDiff / (double)samples.size());
-
-            VERBOSE("Estimated best m is " << m << std::endl);
-        }
-
+        assert(out.Write(blockSize));
         assert(out.Write(nBits));
         assert(out.Write(predictor));
-        assert(out.Write(m));
         assert(out.Write(nChannels));
         assert(out.Write(nFrames));
         assert(out.Write(nSampleRate));
 
-        for(const auto residual : residuals)
+        uint64_t block = 0;
+        while((read = sfhIn.readf(samples.data(), blockSize)) > 0)
         {
-            BitSet bs = GolombCoder::Encode(residual, m);
-            writtenBits += bs.size();
+            samples.resize(read * nChannels);
 
-            assert(out.WriteNBits(bs));
+            uint64_t writtenBits = 0;
+            uint64_t totalDiff = 0;
+
+            std::vector<int16_t> residuals;
+
+            if(lossy)
+            {
+                samples = Quantize(samples, nBits, totalDiff);
+            }
+
+            residuals = AudioPredictors::Encode(samples, read, nChannels, totalDiff, predictor);
+
+            if(autoM)
+            {
+                m = GolombCoder::EstimateM(residuals, 512, 32);
+
+                VERBOSE("Estimated best m for block " << block++ << " is: " << m << "\n");
+            }
+
+            out.WriteAlign(false);
+            assert(out.Write(m));
+
+            for(const auto residual : residuals)
+            {
+                BitSet bs = GolombCoder::Encode(residual, m);
+                writtenBits += bs.size();
+
+                assert(out.WriteNBits(bs));
+            }
+
+            VERBOSE("Written: " << writtenBits << " bits\n");
+
+            samples.resize(blockSize * nChannels);
         }
-
-        VERBOSE("Written: " << writtenBits << " bits\n");
+        
     }
     else
     {       
         BitStream in(argv[argc-2], "r");
 
+        assert(in.Read(blockSize));
         assert(in.Read(nBits));
         assert(in.Read(predictor));
-        assert(in.Read(m));
         assert(in.Read(nChannels));
         assert(in.Read(nFrames));
         assert(in.Read(nSampleRate));
+        assert(in.Read(m));
 
         VERBOSE("Predictor: " << predictor << "\n");
-
-        SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, (int)nSampleRate};
-
-        auto residuals = GolombCoder::Decode(in, m);
-
-        std::vector<int16_t> samples;
 
         if(nBits != 0)
         {
             VERBOSE("Lossy mode detected\n");
             VERBOSE("nBits: " << nBits << "\n");
-            residuals = Dequantize(residuals, nBits);
         }
 
-        samples = AudioPredictors::Decode(residuals, nFrames, nChannels, predictor);
+        SndfileHandle out { argv[argc-1], SFM_WRITE, SF_FORMAT_PCM_16 | SF_FORMAT_WAV, nChannels, (int)nSampleRate};
 
-        out.writef(samples.data(), nFrames);
+        std::vector<int64_t> residuals;
+
+        while((residuals = GolombCoder::Decode(in, m, blockSize * nChannels)).size() > 0)
+        {
+            uint64_t readFrames = residuals.size() / nChannels;
+            
+            in.ReadAlign();
+            in.Read(m); // last read will fail but it's fine
+            
+            std::vector<int16_t> samples;
+
+            if(nBits != 0)
+            {
+                residuals = Dequantize(residuals, nBits);
+            }
+
+            samples = AudioPredictors::Decode(residuals, readFrames, nChannels, predictor);
+ 
+            out.writef(samples.data(), readFrames);
+        }
     }
 
-    
-    VERBOSE("m: " << m << "\n");
     VERBOSE("nChannels: " << nChannels << "\n");
     VERBOSE("nFrames: " << nFrames << "\n");
     VERBOSE("nSampleRate: " << nSampleRate << "\n");
+    VERBOSE("blockSize: " << blockSize << "\n");
 
     return EXIT_SUCCESS;
 }
