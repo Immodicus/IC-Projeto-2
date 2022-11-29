@@ -6,6 +6,52 @@
 class AudioPredictors
 {
 public:
+    static std::vector<int16_t> Encode(const std::vector<int16_t>& samples, uint64_t nFrames, int nChannels, uint64_t& totalDiff, uint16_t predictor)
+    {
+        if(predictor == 3)
+        {
+            return AudioPredictors::ThirdOrderPolEnc(samples, nFrames, nChannels, totalDiff);
+        }
+        else if(predictor == 2)
+        {
+            return AudioPredictors::SecondOrderPolEnc(samples, nFrames, nChannels, totalDiff);
+        }
+        else if(predictor == 1)
+        {
+            return AudioPredictors::FirstOrderPolEnc(samples, nFrames, nChannels, totalDiff);
+        }
+        else if(predictor == 4)
+        {
+            return AudioPredictors::InterChannelEnc(samples, nFrames, nChannels, totalDiff);
+        }
+
+        std::cerr << "Invalid Predictor. Exiting\n";
+        std::abort();
+    }
+
+    static std::vector<int16_t> Decode(const std::vector<int64_t>& residuals, uint64_t nFrames, int nChannels, uint16_t predictor)
+    {
+        if(predictor == 3)
+        {
+            return AudioPredictors::ThirdOrderPolDec(residuals, nFrames, nChannels);
+        }
+        else if(predictor == 2)
+        {
+            return AudioPredictors::SecondOrderPolDec(residuals, nFrames, nChannels);
+        }
+        else if(predictor == 1)
+        {
+            return AudioPredictors::FirstOrderPolDec(residuals, nFrames, nChannels);            
+        }
+        else if(predictor == 4)
+        {
+            return AudioPredictors::InterChannelDec(residuals, nFrames, nChannels);     
+        }
+
+        std::cerr << "Invalid Predictor. Exiting\n";
+        std::abort();
+    }
+
     static std::vector<int16_t> ThirdOrderPolEnc(const std::vector<int16_t>& samples, uint64_t nFrames, int nChannels, uint64_t& totalDiff)
     {
         std::vector<int16_t> residuals(nFrames * nChannels);

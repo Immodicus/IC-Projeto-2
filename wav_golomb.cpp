@@ -168,27 +168,7 @@ int main(int argc, char** argv)
             samples = Quantize(samples, nBits, totalDiff);
         }
 
-        if(predictor == 3)
-        {
-            residuals = AudioPredictors::ThirdOrderPolEnc(samples, nFrames, nChannels, totalDiff);
-        }
-        else if(predictor == 2)
-        {
-            residuals = AudioPredictors::SecondOrderPolEnc(samples, nFrames, nChannels, totalDiff);
-        }
-        else if(predictor == 1)
-        {
-            residuals = AudioPredictors::FirstOrderPolEnc(samples, nFrames, nChannels, totalDiff);
-        }
-        else if(predictor == 4)
-        {
-            residuals = AudioPredictors::InterChannelEnc(samples, nFrames, nChannels, totalDiff);
-        }
-        else
-        {
-            std::cerr << "Invalid predictor \n";
-            return EXIT_FAILURE;
-        }
+        residuals = AudioPredictors::Encode(samples, nFrames, nChannels, totalDiff, predictor);
 
         if(autoM)
         {
@@ -240,27 +220,7 @@ int main(int argc, char** argv)
             residuals = Dequantize(residuals, nBits);
         }
 
-        if(predictor == 3)
-        {
-            samples = AudioPredictors::ThirdOrderPolDec(residuals, nFrames, nChannels);
-        }
-        else if(predictor == 2)
-        {
-            samples = AudioPredictors::SecondOrderPolDec(residuals, nFrames, nChannels);
-        }
-        else if(predictor == 1)
-        {
-            samples = AudioPredictors::FirstOrderPolDec(residuals, nFrames, nChannels);            
-        }
-        else if(predictor == 4)
-        {
-            samples = AudioPredictors::InterChannelDec(residuals, nFrames, nChannels);     
-        }
-        else
-        {
-            std::cerr << "Invalid predictor \n";
-            return EXIT_FAILURE;
-        }
+        samples = AudioPredictors::Decode(residuals, nFrames, nChannels, predictor);
 
         out.writef(samples.data(), nFrames);
     }
