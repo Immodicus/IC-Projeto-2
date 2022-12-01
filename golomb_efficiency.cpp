@@ -9,6 +9,12 @@
 
 int main(int argc, char** argv)
 {
+    if(argc < 2)
+    {
+        std::cerr << "Usage: golomb_efficiency wavFile\n";
+        return EXIT_FAILURE;
+    }
+    
     SndfileHandle audioFile(argv[1]);
     BitStream bs_m1("test_m1.out", "w+");
     BitStream bs_m2("test_m2.out", "w+");
@@ -17,25 +23,9 @@ int main(int argc, char** argv)
 
     audioFile.readf(samples.data(), audioFile.frames());
 
-    uint64_t m1 = 0;
-    uint64_t m2 = 0;
-    for(const auto sample : samples)
-    {
-        m1 += abs(sample);
+    uint64_t m1 = GolombCoder::EstimateMBrute(samples, 5000);
 
-        m2 += abs(2 * sample);
-        if(sample < 0) 
-        {
-            m2 -= 1;
-        }
-    }
-
-    m1 = std::ceil((double)m1 / (audioFile.frames() * audioFile.channels()));
-
-    // double p = (double)m2 / (audioFile.frames() * audioFile.channels());
-    // m2 = std::ceil(-(log2(2-p) / log2(1-p)));
-
-    m2 = std::ceil((double)m2 / (audioFile.frames() * audioFile.channels()));
+    uint64_t m2 = GolombCoder::EstimateMBrute(samples, 5000, true);
 
     std::cout << "m1: " << m1 << std::endl;
     std::cout << "m2: " << m2 << std::endl;

@@ -42,13 +42,19 @@ private:
     }
 
     template <typename T>
-    static int64_t EstimateInternal(const std::vector<T> &v, int64_t t)
+    static int64_t EstimateInternal(const std::vector<T> &v, int64_t t, bool fold)
     {
         uint64_t b = std::floor(log2(static_cast<double>(t)));
         uint64_t sum = 0;
 
-        for (const auto e : v)
+        for (auto e : v)
         {
+            if(fold) 
+            {
+                if(e < 0) e = abs(e * 2) - 1;
+                else e = abs(e * 2);
+            }
+            
             uint64_t q = abs(e) / t;
             uint64_t r = abs(e) % t;
 
@@ -72,7 +78,7 @@ private:
 
 public:
     template<typename T>
-    static int64_t EstimateM(const std::vector<T>& v, int64_t range, int64_t div)
+    static int64_t EstimateM(const std::vector<T>& v, int64_t range, int64_t div, bool fold = false)
     {
         static_assert(std::is_fundamental<T>::value);
         
@@ -97,7 +103,7 @@ public:
             {
                 if(t <= 0) mins.push_back(UINT64_MAX);
                 
-                else mins.push_back(EstimateInternal(v, t));
+                else mins.push_back(EstimateInternal(v, t, fold));
             }
 
             for(size_t i = 0; i < mins.size(); i++)
@@ -111,6 +117,37 @@ public:
 
             range = 2 * div;
             div /= 2;
+        }
+
+        return bestM;
+    }
+
+    template<typename T>
+    static int64_t EstimateMBrute(const std::vector<T>& v, int64_t range, bool fold = false)
+    {
+        static_assert(std::is_fundamental<T>::value);
+        
+        uint64_t sum = 0;
+        for(const auto e : v)
+        {
+            sum += abs(e);
+        }
+
+        int64_t m = std::ceil(sum / v.size());
+
+        uint64_t min = UINT64_MAX;
+        int64_t bestM = m;
+
+        for(int64_t t = bestM - range; t <= bestM + range; t++)
+        {
+            if(t <= 0) continue;
+
+            uint64_t e = EstimateInternal(v, t, fold); 
+            if(e < min)
+            {
+                min = e;
+                bestM = t;
+            }
         }
 
         return bestM;
@@ -289,7 +326,8 @@ public:
     static BitSet EncodeFold(int64_t i, uint64_t m)
     {     
         i *= 2;
-        if(i < 0) i--;
+        if(i < 0) i = abs(i) - 1;
+        else i = abs(i);
         
         uint64_t q = abs(i) / m;
         uint64_t r = abs(i) % m;
@@ -361,19 +399,21 @@ public:
         }
 
         int64_t res = q * m + r;
-        if(res % 2 == 1) res = -(res / 2);
+        if(res % 2 == 1) res = -(res / 2) - 1;
         else res = res / 2;
 
         return res;
     }
 
-    static std::vector<int64_t> DecodeFold(BitStream& bs, uint64_t m)
+    static std::vector<int64_t> DecodeFold(BitStream& bs, uint64_t m, uint64_t max = UINT64_MAX)
     {
         std::vector<int64_t> decoded(0);
 
         uint64_t b = std::floor(log2(static_cast<double>(m)));
+
+        uint64_t count = 0;
         
-        while(!bs.End())
+        while(!bs.End() && count < max)
         {
             bool bit = false;
             
@@ -402,10 +442,11 @@ public:
             }
 
             int64_t res = q * m + r;
-            if(res % 2 == 1) res = -(res / 2);
+            if(res % 2 == 1) res = -(res / 2) - 1;
             else res = res / 2;
 
             decoded.push_back(res);
+            count++;
         }
 
     end:

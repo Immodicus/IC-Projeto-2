@@ -57,6 +57,7 @@ int main(int argc, char** argv)
         std::cerr << "                  [ -d (decode)]\n";
         std::cerr << "                  [ -l (lossy) nBits]\n";
         std::cerr << "                  [ -bs blockSize (def. 4096)]\n";
+        std::cerr << "                  [ -range range div (def. 512 32)]\n";
 		std::cerr << "                  fileIn fileOut\n";
 		return 1;
 	}
@@ -69,6 +70,8 @@ int main(int argc, char** argv)
     uint32_t nBits = 0;
     uint16_t m = 512;
     uint64_t blockSize = 4096;
+    int64_t range = 512;
+    int64_t div = 32;
 
     for(int n = 1 ; n < argc ; n++)
 	{
@@ -103,6 +106,16 @@ int main(int argc, char** argv)
         if(std::string(argv[n]) == "-bs") 
         {
 			blockSize = atoi(argv[n+1]);
+			break;
+		}
+    }
+
+    for(int n = 1 ; n < argc ; n++)
+	{
+        if(std::string(argv[n]) == "-range") 
+        {
+			range = atoi(argv[n+1]);
+            div = atoi(argv[n+2]);
 			break;
 		}
     }
@@ -198,7 +211,7 @@ int main(int argc, char** argv)
 
             if(autoM)
             {
-                m = GolombCoder::EstimateM(residuals, 512, 32);
+                m = GolombCoder::EstimateM(residuals, range, div, true);
 
                 VERBOSE("Estimated best m for block " << block++ << " is: " << m << "\n");
             }
@@ -208,7 +221,7 @@ int main(int argc, char** argv)
 
             for(const auto residual : residuals)
             {
-                BitSet bs = GolombCoder::Encode(residual, m);
+                BitSet bs = GolombCoder::EncodeFold(residual, m);
                 writtenBits += bs.size();
 
                 assert(out.WriteNBits(bs));
@@ -244,7 +257,7 @@ int main(int argc, char** argv)
 
         std::vector<int64_t> residuals;
 
-        while((residuals = GolombCoder::Decode(in, m, blockSize * nChannels)).size() > 0)
+        while((residuals = GolombCoder::DecodeFold(in, m, blockSize * nChannels)).size() > 0)
         {
             uint64_t readFrames = residuals.size() / nChannels;
             
