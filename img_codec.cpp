@@ -69,9 +69,9 @@ int main(int argc, char** argv)
         predictions.clear();
 
         uint64_t totalDiff = 0;
-        for(size_t row = 0; row < img.rows; row++)
+        for(size_t row = 0; row < (size_t)img.rows; row++)
         {            
-            for(size_t col = 0; col < img.cols; col++)
+            for(size_t col = 0; col < (size_t)img.cols; col++)
             {
                 uchar xr;
                 uchar xg;
@@ -166,9 +166,9 @@ int main(int argc, char** argv)
         assert(out.Write(m));
 
         uint64 p = 0;
-        for(size_t row = 0; row < img.rows; row++)
+        for(size_t row = 0; row < (size_t)img.rows; row++)
         {
-            for(size_t col = 0; col < img.cols; col++)
+            for(size_t col = 0; col < (size_t)img.cols; col++)
             {
                 out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
                 out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
@@ -195,9 +195,9 @@ int main(int argc, char** argv)
         auto results = GolombCoder::Decode(in, m);
 
         size_t p = 0;
-        for(size_t row = 0; row < rows; row++)
+        for(size_t row = 0; row < (size_t)rows; row++)
         {            
-            for(size_t col = 0; col < cols; col++)
+            for(size_t col = 0; col < (size_t)cols; col++)
             {
                 uchar xr;
                 uchar xg;
