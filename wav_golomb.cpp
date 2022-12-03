@@ -86,9 +86,12 @@ int main(int argc, char** argv)
 	{
         if(std::string(argv[n]) == "-m") 
         {
-			autoM = false;
-            m = atoi(argv[n+1]);
-			break;
+			if(std::string(argv[n+1]) != "auto")
+            {
+                autoM = false;
+                m = atoi(argv[n+1]);
+                break;
+            }
 		}
     }
 
