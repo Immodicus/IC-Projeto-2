@@ -15,6 +15,7 @@ int main(int argc, char** argv)
     {
         std::cerr << "Usage: img_codec  [ -m [auto|value] (def. auto) ]\n";
         std::cerr << "                  [ -d (decode)]\n";
+        std::cerr << "                  [ -range range div (def. 512 32)]\n";
 		std::cerr << "                  fileIn fileOut\n";
         return EXIT_FAILURE;
     }
@@ -23,14 +24,19 @@ int main(int argc, char** argv)
     bool encode = true;
     bool verbose = false;
     uint64_t m = 6;
+    int64_t range = 512;
+    int64_t div = 32;
 
     for(int n = 1; n < argc; n++)
 	{
         if(std::string(argv[n]) == "-m") 
         {
-            autoM = false;
-            m = atoi(argv[n+1]);
-			break;
+            if(std::string(argv[n+1]) != "auto")
+            {
+                autoM = false;
+                m = atoi(argv[n+1]);
+                break;
+            }
 		}
     }
 
@@ -48,6 +54,16 @@ int main(int argc, char** argv)
         if(std::string(argv[n]) == "-v") 
         {
 			verbose = true;
+			break;
+		}
+    }
+
+    for(int n = 1 ; n < argc ; n++)
+	{
+        if(std::string(argv[n]) == "-range") 
+        {
+			range = atoi(argv[n+1]);
+            div = atoi(argv[n+2]);
 			break;
 		}
     }
@@ -157,7 +173,7 @@ int main(int argc, char** argv)
 
         if(autoM)
         {
-            m = std::ceil((double)totalDiff / (double)(img.rows * img.cols * 3));
+            m = GolombCoder::EstimateM(predictions, range, div, true);
             VERBOSE("Auto determined m is: " << m << "\n");
         }
         
@@ -170,9 +186,9 @@ int main(int argc, char** argv)
         {
             for(size_t col = 0; col < (size_t)img.cols; col++)
             {
-                out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
-                out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
-                out.WriteNBits(GolombCoder::Encode(predictions[p++], m));
+                out.WriteNBits(GolombCoder::EncodeFold(predictions[p++], m));
+                out.WriteNBits(GolombCoder::EncodeFold(predictions[p++], m));
+                out.WriteNBits(GolombCoder::EncodeFold(predictions[p++], m));
             }
         }
     }
@@ -192,7 +208,7 @@ int main(int argc, char** argv)
 
         Mat out(rows, cols, CV_8UC3);
 
-        auto results = GolombCoder::Decode(in, m);
+        auto results = GolombCoder::DecodeFold(in, m);
 
         size_t p = 0;
         for(size_t row = 0; row < (size_t)rows; row++)

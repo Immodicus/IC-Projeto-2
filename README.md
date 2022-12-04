@@ -31,7 +31,7 @@ The following examples show all possible arguments being used although some of t
 `img_effects` input_img result_img 
 
 #### Note: 
-The program will ask you for which effect you want
+The program will ask you for which effect you want to apply
 
 #### Example:
 - `img_effects` 03.256.ppm effected.ppm // apply affects to 03.256.ppm and save them in effected.ppm
@@ -62,10 +62,10 @@ The program will ask you for your predictor choice
 
 #### Examples:
 - `wav_golomb` -l 12 sample01.wav encoded // encode sample01.wav to encoded and quantize residuals to 12 bits
-- `wav_golomb` -d sample01.wav decoded.wav // decode encoded to decoded.wav
+- `wav_golomb` -d encoded decoded.wav // decode encoded to decoded.wav
 
 ### Ex6.
-`img_codec` -m [auto|value] input_img encoded
+`img_codec` -m [auto|value] -range range div input_img encoded
 
 #### Examples:
 - `img_codec` 23.256.ppm encoded // encode 23.256.ppm to encoded
